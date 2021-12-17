@@ -6,7 +6,7 @@
 # Copyright: Ryota Tokiwa
 # License: GPL
 # Uage: See README.TXT
- // v1.15 PHP8対応 2021-12-17 byはいふん
+ // v0.26 PHP8対応 2021-12-17 byはいふん
 
 # 使用目的に合わせて定数を調整してください。
 # 投票前に得票数を表示する(TRUE)／しない(FALSE) 
