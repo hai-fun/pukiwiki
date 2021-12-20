@@ -1,9 +1,9 @@
 <?php
-define('_PARAEDIT_VERSION', 0.9);
+define('_PARAEDIT_VERSION', 1.0);
 
 /*
 
-* パラグラフ指向化プラグイン - paraedit 0.9
+* パラグラフ指向化プラグイン - paraedit 1.0
 
 PukiWikiでパラグラフ単位の編集をできるようにするプラグインです。
 
@@ -28,7 +28,8 @@ PukiWikiでパラグラフ単位の編集をできるようにするプラグイ
 
 
  taru : paraedit0.8 変更点について
- はいふん：v0.9 PHP8対応 2021-12-20
+        v0.9 split() を explode() に書き換え、fatal errorを回避した物
+ はいふん：v1.0 PHP8対応 2021-12-20
 
  1.     function plugin_paraedit_init()で参照しているinit.php
         がPukiWiki 1.4.7ではlibフォルダに格納されているから
