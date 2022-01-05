@@ -1,0 +1,238 @@
+<?php
+// $Id: recentupdates.inc.php,v 1.0 2022/01/04 00:00:00 はいふん Exp $
+
+// Origin:
+// PukiWiki - Yet another WikiWikiWeb clone
+// recent.inc.php
+// Copyright
+//   2002-2017 PukiWiki Development Team
+//   2002      Y.MASUI http://masui.net/pukiwiki/ masui@masui.net
+// License: GPL v2 or (at your option) any later version
+//
+// Recent plugin -- Show RecentChanges list
+//   * Usually used at 'MenuBar' page
+//   * Also used at special-page, without no #recnet at 'MenuBar'
+
+// Default event display
+define('PLUGIN_RECENTUPDATES_DEFAULT_SHOW_LINES', 50);
+
+// max of event display
+define('PLUGIN_RECENTUPDATES_LIMIT_SHOW_LINES', 500);
+
+// number of Page of operation
+define('PLUGIN_RECENTUPDATES_OPERATION_COUNT', 9);
+
+// Limit number of executions
+define('PLUGIN_RECENTUPDATES_EXEC_LIMIT', 3); // N times per one output
+
+// Display author of page
+define('PLUGIN_RECENTUPDATES_DISPLAY_AUTHOR', TRUE); // N times per one output
+
+// ----
+
+define('PLUGIN_RECENTUPDATES_USAGE', '#recent(number-to-show)');
+
+// Place of the cache of 'RecentChanges'
+define('PLUGIN_RECENTUPDATES_CACHE', CACHE_DIR . 'recent.dat');
+
+function plugin_recentupdates_init() {
+	// ja.lng.php
+	$messages = array(
+		'_recentupdates_messages' => array(
+			'msg_display_number' => '表示件数',
+			'msg_all' => 'すべて',
+			'btn_prev' => '前へ',
+			'btn_next' => '次へ'
+		)
+	);
+	
+	/*
+	// en.lng.php
+	$messages = array(
+		'_recentupdates_messages' => array(
+			'msg_display_number' => 'Event display',
+			'msg_all' => 'ALL',
+			'btn_prev' => 'Prev',
+			'btn_next' => 'Next'
+		)
+	);
+	*/
+	
+	set_plugin_messages($messages);
+}
+
+function plugin_recentupdates_convert()
+{
+	global $_recentupdates_messages;
+	global $vars;
+	global $date_format, $time_format, $weeklabels;
+	static $exec_count = 1;
+	$isMax = false;
+	$isAll = $vars['limit'] == 0 && isset($vars['limit']);
+	
+	$show_lines = PLUGIN_RECENTUPDATES_DEFAULT_SHOW_LINES;
+	if (func_num_args()) {
+		$args = func_get_args();
+		if (! is_numeric($args[0]) || isset($args[1])) {
+			return PLUGIN_RECENTUPDATES_USAGE . '<br />';
+		} else {
+			$show_lines = $args[0];
+		}
+	}
+	$from = 1;
+	if (isset($vars['limit'])) $show_lines = $vars['limit'];
+	if (isset($vars['from'])) $from = $vars['from'];
+	// int型へキャスト
+	if (!is_int($show_lines)) $show_lines = (int) $show_lines;
+	if (!is_int($from)) $from = (int) $from;
+	--$from;
+	if ($from < 0) $from = 0;
+
+	// Show only N times
+	if ($exec_count > PLUGIN_RECENTUPDATES_EXEC_LIMIT) {
+		return '#recentupdates(): You called me too much' . '<br />' . "\n";
+	} else {
+		++$exec_count;
+	}
+
+	if (! file_exists(PLUGIN_RECENTUPDATES_CACHE)) {
+		put_lastmodified();
+		if (! file_exists(PLUGIN_RECENTUPDATES_CACHE)) {
+			return '#recentupdates(): ' . PLUGIN_RECENTUPDATES_CACHE . '/ not found' . '<br />';
+		}
+	}
+
+	// 定義より大きい場合、定義値にする
+	if ($show_lines > PLUGIN_RECENTUPDATES_LIMIT_SHOW_LINES) {
+		$show_lines = PLUGIN_RECENTUPDATES_LIMIT_SHOW_LINES;
+	}
+
+	// Get latest N changes
+	if ($show_lines == 0) {
+		$lines = array_slice(file(PLUGIN_RECENTUPDATES_CACHE), $from);
+		
+		if ($lines == FALSE) return '#recentupdates(): File can not open' . '<br />' . "\n";
+	} else {
+		$lines_p = array_slice(file_head(PLUGIN_RECENTUPDATES_CACHE, $show_lines + $from + 1), $from);
+		$lines = array_slice($lines_p, 0, $show_lines);
+		if ($lines == FALSE) return '#recentupdates(): File can not open' . '<br />' . "\n";
+		$next_line = array_slice($lines_p, $show_lines);
+		if ($next_line == FALSE) $isMax = true;
+		unset($lines_p);
+		unset($next_line);
+	}
+	$page_count = 0;
+	$fp = fopen(PLUGIN_RECENTUPDATES_CACHE, 'r');
+	for($page_count = 0; fgets($fp); ++$page_count);
+	fclose($fp);
+	if ($isAll) $show_lines = $page_count;
+	$num_operation = '';
+	$move_n = round(PLUGIN_RECENTUPDATES_OPERATION_COUNT / 2);
+	for ($c = 1;$c <= PLUGIN_RECENTUPDATES_OPERATION_COUNT; ++$c) {		
+		$n = ($from + $show_lines) / $show_lines;
+		$disp_num = $c;
+		if ($n > $move_n) $disp_num = $c + $n - $move_n;
+		$f = $disp_num * $show_lines - $show_lines + 1;
+		if ($f > $page_count) break;
+		$num_operation .= '<' . ($f == $from + 1 ? 'span' : 'a' ) . ' href="' . get_page_uri($vars['page']) . (isset($vars['limit']) ? '&limit=' . $vars['limit'] : '') . '&from=' . ($f) . '"><strong>' . $disp_num . '</strong></' . ($f == $from + 1 ? 'span' : 'a' ) . '> | ';
+	}
+	$num_operation = substr($num_operation, 0, -3);
+	if ($isAll) {
+		$operation = '';
+	} else {
+		$operation = '
+		<div style="text-align:center">
+			' . ($from > 0 ? '<a href="' . get_page_uri($vars['page']) . (isset($vars['limit']) ? '&limit=' . $vars['limit'] : '') . '&from=' . ($from + 1 - $show_lines) . '"><strong>' . $_recentupdates_messages['btn_prev'] . '</strong></a> | ' : '') . '
+			' . $num_operation . '
+			' . ($isMax != true ? ' | <a href="' . get_page_uri($vars['page']) . (isset($vars['limit']) ? '&limit=' . $vars['limit'] : '') . '&from=' . ($from + 1 + $show_lines) . '"><strong>' . $_recentupdates_messages['btn_next'] . '</strong></a>' : '') . '
+		</div>
+		';
+	}
+	$option = '
+	<div>
+		' . $_recentupdates_messages['msg_display_number'] . ': [ <' . ($show_lines == 25 ? 'span' : 'a' ) . ' href="' . get_page_uri($vars['page']) . '&limit=25' . (isset($vars['from']) ? '&from=' . $vars['from'] : '') . '">25</a> | 
+		<' . ($show_lines == 50 ? 'span' : 'a' ) . ' href="' . get_page_uri($vars['page']) . '&limit=50' . (isset($vars['from']) ? '&from=' . $vars['from'] : '') . '">50</a> | 
+		<' . ($show_lines == 100 ? 'span' : 'a' ) . ' href="' . get_page_uri($vars['page']) . '&limit=100' . (isset($vars['from']) ? '&from=' . $vars['from'] : '') . '">100</a> | 
+		<' . ($show_lines == 250 ? 'span' : 'a' ) . ' href="' . get_page_uri($vars['page']) . '&limit=250' . (isset($vars['from']) ? '&from=' . $vars['from'] : '') . '">250</a> |
+		<' . ($vars['limit'] == 0  && isset($vars['limit']) ? 'span' : 'a' ) . ' href="' . get_page_uri($vars['page']) . '&limit=0' . (isset($vars['from']) ? '&from=' . $vars['from'] : '') . '">' . $_recentupdates_messages['msg_all'] . '</a> ]
+	</div>
+	';
+	$date = $items = '';
+	$script = get_script_uri();
+	foreach ($lines as $line) {
+		list($time, $page) = explode("\t", rtrim($line));
+		$_date = date($date_format, $time) . ' (' . $weeklabels[date('w', $time)] . ') ';
+		if ($date != $_date) {
+			// End of the day
+			if ($date != '') $items .= '</ul>' . "\n";
+
+			// New day
+			$date = $_date;
+			$items .= '<strong>' . $date . '</strong>' . "\n" .
+				'<ul class="recent_list">' . "\n";
+		}
+		$tag_plugin = "";
+		if (exist_plugin("tag")) {
+			$tagfile = CACHE_DIR . encode($page) . "_page.tag";
+			if (file_exists($tagfile)) {
+				$tags = implode(', ', array_map(
+					function($str) {
+						return '<a href="' . $script . '?cmd=taglist&tag=' . $str . '">' . htmlsc($str) . "</a>";
+					}, 
+				array_map("rtrim", file($tagfile))
+				));
+				$tag_plugin = ' (Tag: ' . $tags . ")";
+				unset($tags);
+			}
+		}
+		$author = "";
+		if (PLUGIN_RECENTUPDATES_DISPLAY_AUTHOR) {
+			$page_head = file_head(get_filename($page))[0];
+			if (preg_match("/#author\(\".*?\",\".*?\",\"(.*?)\"\)/", $page_head, $matches)) {
+				$author = $matches[1];
+			}
+		}
+		$s_page = htmlsc($page);
+		$attrs = get_page_link_a_attrs($page);
+		$items .= ' <li>
+			' . date($time_format, $time) . ' - ' . '[ <a href="' . $script . '?cmd=diff&page=' . $s_page . '">差分</a>' . ' | <a href="' . $script . '?cmd=backup&page=' . $s_page . '">バックアップ</a> ] ' . 
+			'<a href="' . get_page_uri($page) . '" class="' .
+			$attrs['class'] . '" data-mtime="' . $attrs['data_mtime'] .
+			'">' . $s_page . '</a>' .
+			' -- ' . 
+			($author == "" ? "" : make_pagelink($author) . ' ') .
+			plugin_recentupdates_get_diff_str($page) .
+			$tag_plugin .
+			'</li>' . "\n";
+	}
+	// End of the day
+	if ($date != '') $items .= '</ul>' . "\n";
+
+	return $operation . $items . $operation . $option;
+}
+
+function plugin_recentupdates_get_diff_str($page) {
+	// 差分の文字数計算
+	$diff_len = 0;
+	$diff_len_str = '';
+	$diff_file = DIFF_DIR . encode($page) . '.txt';
+	if (file_exists($diff_file)) {
+		foreach (file($diff_file) as $line) {
+			$head = $line[0];
+			if ($head == "+") {
+				$diff_len += mb_strlen($line) - 1;
+			}
+			else if ($head == "-") {
+				$diff_len -= mb_strlen($line) - 1;
+			}
+		}
+	} else if (is_page($page)) {
+		$diff_len = mb_strlen(join('', get_source($page)));
+	} else {
+		$diff_len = 0;
+	}
+	if ($diff_len == 0) $diff_len_str = '<span class="diff_unchanged">(0)</span>';
+	if ($diff_len > 0) $diff_len_str = '<span class="diff_added">(+' . $diff_len . ')</span>';
+	if ($diff_len < 0) $diff_len_str = '<span class="diff_removed">(' . $diff_len . ')</span>';
+	return $diff_len_str;
+}
