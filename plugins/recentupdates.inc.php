@@ -40,6 +40,7 @@ function plugin_recentupdates_init() {
 	$messages = array(
 		'_recentupdates_messages' => array(
 			'msg_display_number' => '表示件数',
+			'msg_title' => '最近の更新',
 			'msg_all' => 'すべて',
 			'btn_prev' => '前へ',
 			'btn_next' => '次へ'
@@ -67,9 +68,11 @@ function plugin_recentupdates_convert()
 	global $vars;
 	global $date_format, $time_format, $weeklabels;
 	static $exec_count = 1;
+	$script = get_script_uri();
+
 	$isMax = false;
 	$isAll = $vars['limit'] == 0 && isset($vars['limit']);
-	
+
 	$show_lines = PLUGIN_RECENTUPDATES_DEFAULT_SHOW_LINES;
 	if (func_num_args()) {
 		$args = func_get_args();
@@ -79,6 +82,10 @@ function plugin_recentupdates_convert()
 			$show_lines = $args[0];
 		}
 	}
+	
+	$isAction = false;
+	if (strtolower($vars['plugin']) == 'recentupdates' || strtolower($vars['cmd']) == 'recentupdates') $isAction = true;
+	
 	$from = 1;
 	if (isset($vars['limit'])) $show_lines = $vars['limit'];
 	if (isset($vars['from'])) $from = $vars['from'];
@@ -134,7 +141,7 @@ function plugin_recentupdates_convert()
 		if ($n > $move_n) $disp_num = $c + $n - $move_n;
 		$f = $disp_num * $show_lines - $show_lines + 1;
 		if ($f > $page_count) break;
-		$num_operation .= '<' . ($f == $from + 1 ? 'span' : 'a' ) . ' href="' . get_page_uri($vars['page']) . (isset($vars['limit']) ? '&limit=' . $vars['limit'] : '') . '&from=' . ($f) . '"><strong>' . $disp_num . '</strong></' . ($f == $from + 1 ? 'span' : 'a' ) . '> | ';
+		$num_operation .= '<' . ($f == $from + 1 ? 'span' : 'a' ) . ' href="' . ($isAction ? $script . '?plugin=recentupdates' : get_page_uri($vars['page'])) . (isset($vars['limit']) ? '&limit=' . $vars['limit'] : '') . '&from=' . ($f) . '"><strong>' . $disp_num . '</strong></' . ($f == $from + 1 ? 'span' : 'a' ) . '> | ';
 	}
 	$num_operation = substr($num_operation, 0, -3);
 	if ($isAll) {
@@ -142,23 +149,22 @@ function plugin_recentupdates_convert()
 	} else {
 		$operation = '
 		<div style="text-align:center">
-			' . ($from > 0 ? '<a href="' . get_page_uri($vars['page']) . (isset($vars['limit']) ? '&limit=' . $vars['limit'] : '') . '&from=' . ($from + 1 - $show_lines) . '"><strong>' . $_recentupdates_messages['btn_prev'] . '</strong></a> | ' : '') . '
+			' . ($from > 0 ? '<a href="' . ($isAction ? $script . '?plugin=recentupdates' : get_page_uri($vars['page'])) . (isset($vars['limit']) ? '&limit=' . $vars['limit'] : '') . '&from=' . ($from + 1 - $show_lines) . '"><strong>' . $_recentupdates_messages['btn_prev'] . '</strong></a> | ' : '') . '
 			' . $num_operation . '
-			' . ($isMax != true ? ' | <a href="' . get_page_uri($vars['page']) . (isset($vars['limit']) ? '&limit=' . $vars['limit'] : '') . '&from=' . ($from + 1 + $show_lines) . '"><strong>' . $_recentupdates_messages['btn_next'] . '</strong></a>' : '') . '
+			' . ($isMax != true ? ' | <a href="' . ($isAction ? $script . '?plugin=recentupdates' : get_page_uri($vars['page'])) . (isset($vars['limit']) ? '&limit=' . $vars['limit'] : '') . '&from=' . ($from + 1 + $show_lines) . '"><strong>' . $_recentupdates_messages['btn_next'] . '</strong></a>' : '') . '
 		</div>
 		';
 	}
 	$option = '
 	<div>
-		' . $_recentupdates_messages['msg_display_number'] . ': [ <' . ($show_lines == 25 ? 'span' : 'a' ) . ' href="' . get_page_uri($vars['page']) . '&limit=25' . (isset($vars['from']) ? '&from=' . $vars['from'] : '') . '">25</a> | 
-		<' . ($show_lines == 50 ? 'span' : 'a' ) . ' href="' . get_page_uri($vars['page']) . '&limit=50' . (isset($vars['from']) ? '&from=' . $vars['from'] : '') . '">50</a> | 
-		<' . ($show_lines == 100 ? 'span' : 'a' ) . ' href="' . get_page_uri($vars['page']) . '&limit=100' . (isset($vars['from']) ? '&from=' . $vars['from'] : '') . '">100</a> | 
-		<' . ($show_lines == 250 ? 'span' : 'a' ) . ' href="' . get_page_uri($vars['page']) . '&limit=250' . (isset($vars['from']) ? '&from=' . $vars['from'] : '') . '">250</a> |
-		<' . ($vars['limit'] == 0  && isset($vars['limit']) ? 'span' : 'a' ) . ' href="' . get_page_uri($vars['page']) . '&limit=0' . (isset($vars['from']) ? '&from=' . $vars['from'] : '') . '">' . $_recentupdates_messages['msg_all'] . '</a> ]
+		' . $_recentupdates_messages['msg_display_number'] . ': [ <' . ($show_lines == 25 ? 'span' : 'a' ) . ' href="' . ($isAction ? $script . '?plugin=recentupdates' : get_page_uri($vars['page'])) . '&limit=25' . (isset($vars['from']) ? '&from=' . $vars['from'] : '') . '">25</a> | 
+		<' . ($show_lines == 50 ? 'span' : 'a' ) . ' href="' . ($isAction ? $script . '?plugin=recentupdates' : ($isAction ? $script . '?plugin=recentupdates' : get_page_uri($vars['page']))) . '&limit=50' . (isset($vars['from']) ? '&from=' . $vars['from'] : '') . '">50</a> | 
+		<' . ($show_lines == 100 ? 'span' : 'a' ) . ' href="' . ($isAction ? $script . '?plugin=recentupdates' : get_page_uri($vars['page'])) . '&limit=100' . (isset($vars['from']) ? '&from=' . $vars['from'] : '') . '">100</a> | 
+		<' . ($show_lines == 250 ? 'span' : 'a' ) . ' href="' . ($isAction ? $script . '?plugin=recentupdates' : get_page_uri($vars['page'])) . '&limit=250' . (isset($vars['from']) ? '&from=' . $vars['from'] : '') . '">250</a> |
+		<' . ($vars['limit'] == 0  && isset($vars['limit']) ? 'span' : 'a' ) . ' href="' . ($isAction ? $script . '?plugin=recentupdates' : get_page_uri($vars['page'])) . '&limit=0' . (isset($vars['from']) ? '&from=' . $vars['from'] : '') . '">' . $_recentupdates_messages['msg_all'] . '</a> ]
 	</div>
 	';
 	$date = $items = '';
-	$script = get_script_uri();
 	foreach ($lines as $line) {
 		list($time, $page) = explode("\t", rtrim($line));
 		$_date = date($date_format, $time) . ' (' . $weeklabels[date('w', $time)] . ') ';
@@ -209,6 +215,12 @@ function plugin_recentupdates_convert()
 	if ($date != '') $items .= '</ul>' . "\n";
 
 	return $operation . $items . $operation . $option;
+}
+
+function plugin_recentupdates_action()
+{
+	global $_recentupdates_messages;
+	return array('msg' => $_recentupdates_messages['msg_title'], 'body' => plugin_recentupdates_convert());
 }
 
 function plugin_recentupdates_get_diff_str($page) {
