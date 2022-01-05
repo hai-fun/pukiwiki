@@ -1,5 +1,5 @@
 <?php
-// $Id: recentupdates.inc.php,v 1.0 2022/01/04 00:00:00 はいふん Exp $
+// $Id: recentupdates.inc.php,v 1.0 2022/01/06 12:29:01 はいふん Exp $
 
 // Origin:
 // PukiWiki - Yet another WikiWikiWeb clone
