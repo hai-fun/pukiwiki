@@ -1,5 +1,5 @@
 <?php
-// $Id: recentupdates.inc.php,v 1.0 2022/01/06 12:29:01 はいふん Exp $
+// $Id: recentupdates.inc.php,v 1.0 2022/01/06 24:44:34 はいふん Exp $
 
 // Origin:
 // PukiWiki - Yet another WikiWikiWeb clone
@@ -26,7 +26,7 @@ define('PLUGIN_RECENTUPDATES_OPERATION_COUNT', 9);
 define('PLUGIN_RECENTUPDATES_EXEC_LIMIT', 3); // N times per one output
 
 // Display author of page
-define('PLUGIN_RECENTUPDATES_DISPLAY_AUTHOR', TRUE); // N times per one output
+define('PLUGIN_RECENTUPDATES_DISPLAY_AUTHOR', TRUE);
 
 // ----
 
@@ -64,7 +64,7 @@ function plugin_recentupdates_init() {
 
 function plugin_recentupdates_convert()
 {
-	global $_recentupdates_messages;
+	global $_recentupdates_messages, $_LANG;
 	global $vars;
 	global $date_format, $time_format, $weeklabels;
 	static $exec_count = 1;
@@ -201,7 +201,7 @@ function plugin_recentupdates_convert()
 		$s_page = htmlsc($page);
 		$attrs = get_page_link_a_attrs($page);
 		$items .= ' <li>
-			' . date($time_format, $time) . ' - ' . '[ <a href="' . $script . '?cmd=diff&page=' . $s_page . '">差分</a>' . ' | <a href="' . $script . '?cmd=backup&page=' . $s_page . '">バックアップ</a> ] ' . 
+			' . date($time_format, $time) . ' - ' . '[ <a href="' . $script . '?cmd=diff&page=' . $s_page . '">' . $_LANG['skin']['diff'] . '</a>' . ' | <a href="' . $script . '?cmd=backup&page=' . $s_page . '">' . $_LANG['skin']['backup'] . '</a> ] ' . 
 			'<a href="' . get_page_uri($page) . '" class="' .
 			$attrs['class'] . '" data-mtime="' . $attrs['data_mtime'] .
 			'">' . $s_page . '</a>' .
