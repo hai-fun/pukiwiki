@@ -1,5 +1,5 @@
 <?php
-// $Id: recentupdates.inc.php,v 1.0 2022/01/06 24:44:34 はいふん Exp $
+// $Id: recentupdates.inc.php,v 1.1 2022/01/07 01:54:29 はいふん Exp $
 
 // Origin:
 // PukiWiki - Yet another WikiWikiWeb clone
@@ -30,10 +30,11 @@ define('PLUGIN_RECENTUPDATES_DISPLAY_AUTHOR', TRUE);
 
 // ----
 
-define('PLUGIN_RECENTUPDATES_USAGE', '#recent(number-to-show)');
+define('PLUGIN_RECENTUPDATES_USAGE', '#recentupdates(number-to-show)');
 
 // Place of the cache of 'RecentChanges'
 define('PLUGIN_RECENTUPDATES_CACHE', CACHE_DIR . 'recent.dat');
+define('PLUGIN_RECENTUPDATES_EXTENTION_CACHE', CACHE_DIR . 'recentupdates.dat');
 
 function plugin_recentupdates_init() {
 	// ja.lng.php
@@ -108,6 +109,34 @@ function plugin_recentupdates_convert()
 			return '#recentupdates(): ' . PLUGIN_RECENTUPDATES_CACHE . '/ not found' . '<br />';
 		}
 	}
+	// Cache
+	if (! file_exists(PLUGIN_RECENTUPDATES_EXTENTION_CACHE) || filemtime(PLUGIN_RECENTUPDATES_CACHE) != filemtime(PLUGIN_RECENTUPDATES_EXTENTION_CACHE)) {
+		$lines = file(PLUGIN_RECENTUPDATES_CACHE);
+		pkwk_touch_file(PLUGIN_RECENTUPDATES_EXTENTION_CACHE);
+		$fp = fopen(PLUGIN_RECENTUPDATES_EXTENTION_CACHE, 'r+') or
+			die_message('Cannot open' . PLUGIN_RECENTUPDATES_EXTENTION_CACHE);
+		set_file_buffer($fp, 0);
+		flock($fp, LOCK_EX);
+		ftruncate($fp, 0);
+		rewind($fp);
+		foreach ($lines as $line) {
+			list($time, $page) = explode("\t", rtrim($line));
+			$page_head = file_head(get_filename($page))[0];
+			$author = '';
+			if (preg_match("/#author\(\".*?\",\".*?\",\"(.*?)\"\)/", $page_head, $matches)) {
+				$author = $matches[1];
+			}
+			fputs($fp, $time . "\t" . $page . "\t" . plugin_recentupdates_get_diff_str($page) . "\t" . $author . "\n");
+		}
+		flock($fp, LOCK_UN);
+		fclose($fp);
+		
+		// 最終更新をrecent.datに合わせる。
+		touch(PLUGIN_RECENTUPDATES_EXTENTION_CACHE, filemtime(PLUGIN_RECENTUPDATES_CACHE));
+		if (! file_exists(PLUGIN_RECENTUPDATES_EXTENTION_CACHE)) {
+			return '#recentupdates(): ' . PLUGIN_RECENTUPDATES_EXTENTION_CACHE . '/ not found' . '<br />';
+		}
+	}
 
 	// 定義より大きい場合、定義値にする
 	if ($show_lines > PLUGIN_RECENTUPDATES_LIMIT_SHOW_LINES) {
@@ -116,11 +145,11 @@ function plugin_recentupdates_convert()
 
 	// Get latest N changes
 	if ($show_lines == 0) {
-		$lines = array_slice(file(PLUGIN_RECENTUPDATES_CACHE), $from);
+		$lines = array_slice(file(PLUGIN_RECENTUPDATES_EXTENTION_CACHE), $from);
 		
 		if ($lines == FALSE) return '#recentupdates(): File can not open' . '<br />' . "\n";
 	} else {
-		$lines_p = array_slice(file_head(PLUGIN_RECENTUPDATES_CACHE, $show_lines + $from + 1), $from);
+		$lines_p = array_slice(file_head(PLUGIN_RECENTUPDATES_EXTENTION_CACHE, $show_lines + $from + 1), $from);
 		$lines = array_slice($lines_p, 0, $show_lines);
 		if ($lines == FALSE) return '#recentupdates(): File can not open' . '<br />' . "\n";
 		$next_line = array_slice($lines_p, $show_lines);
@@ -166,7 +195,7 @@ function plugin_recentupdates_convert()
 	';
 	$date = $items = '';
 	foreach ($lines as $line) {
-		list($time, $page) = explode("\t", rtrim($line));
+		list($time, $page, $diff_html, $author_tmp) = explode("\t", rtrim($line));
 		$_date = date($date_format, $time) . ' (' . $weeklabels[date('w', $time)] . ') ';
 		if ($date != $_date) {
 			// End of the day
@@ -193,10 +222,7 @@ function plugin_recentupdates_convert()
 		}
 		$author = "";
 		if (PLUGIN_RECENTUPDATES_DISPLAY_AUTHOR) {
-			$page_head = file_head(get_filename($page))[0];
-			if (preg_match("/#author\(\".*?\",\".*?\",\"(.*?)\"\)/", $page_head, $matches)) {
-				$author = $matches[1];
-			}
+			$author = $author_tmp;
 		}
 		$s_page = htmlsc($page);
 		$attrs = get_page_link_a_attrs($page);
@@ -207,7 +233,7 @@ function plugin_recentupdates_convert()
 			'">' . $s_page . '</a>' .
 			' -- ' . 
 			($author == "" ? "" : make_pagelink($author) . ' ') .
-			plugin_recentupdates_get_diff_str($page) .
+			$diff_html .
 			$tag_plugin .
 			'</li>' . "\n";
 	}
